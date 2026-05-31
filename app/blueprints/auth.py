@@ -1,8 +1,8 @@
 """Auth Blueprint — PIN-based login/logout."""
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from werkzeug.security import check_password_hash
-from ..models import Admin
+from ..models import Admin, Settings
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -41,3 +41,51 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/manifest.json')
+def manifest():
+    settings = Settings.query.first()
+    gym_name = settings.gym_name if settings else 'Gym Manager'
+    logo_filename = settings.gym_logo if (settings and settings.gym_logo) else 'My_Fitness_Logo.png'
+    
+    # Render static upload path or fallback default
+    if settings and settings.gym_logo:
+        logo_url = url_for('static', filename=f'uploads/{logo_filename}')
+    else:
+        logo_url = url_for('static', filename=f'uploads/My_Fitness_Logo.png')
+        
+    m = {
+        "short_name": gym_name,
+        "name": gym_name,
+        "icons": [
+            {
+                "src": logo_url,
+                "sizes": "192x192 512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ],
+        "start_url": url_for('auth.login'),
+        "background_color": "#0A1628",
+        "theme_color": "#0A1628",
+        "display": "standalone",
+        "orientation": "portrait"
+    }
+    return jsonify(m)
+
+
+@auth_bp.route('/service-worker.js')
+def service_worker():
+    sw_code = """
+    self.addEventListener('install', function(event) {
+        self.skipWaiting();
+    });
+    self.addEventListener('activate', function(event) {
+        event.waitUntil(self.clients.claim());
+    });
+    self.addEventListener('fetch', function(event) {
+        event.respondWith(fetch(event.request));
+    });
+    """
+    return Response(sw_code, mimetype='application/javascript')
