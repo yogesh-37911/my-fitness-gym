@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}{{ member.full_name }} — {{ settings.gym_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ member.full_name }}</h1>
+    <p class="page-sub">{{ member.member_id }}</p>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <a href="{{ url_for('members.edit_member', member_id=member.id) }}" class="btn-ghost-main">
+      <i class="bi bi-pencil-fill"></i> Edit
+    </a>
+    <a href="{{ url_for('members.renew', member_id=member.id) }}" class="btn-primary-main">
+      <i class="bi bi-arrow-clockwise"></i> Renew
+    </a>
+    <form method="POST" action="{{ url_for('members.checkin', member_id=member.id) }}" style="margin:0">
+      <button type="submit" class="btn-success-main">
+        <i class="bi bi-door-open-fill"></i> Check In/Out
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="profile-grid">
+  <!-- Left Column -->
+  <div class="profile-left">
+    <!-- Identity Card -->
+    <div class="profile-card id-card">
+      <div class="id-card-avatar">{{ member.full_name[0].upper() }}</div>
+      <h2>{{ member.full_name }}</h2>
+      <p class="id-mobile">{{ member.mobile }}</p>
+      <div class="id-badge-row">
+        <span class="member-id-tag">{{ member.member_id }}</span>
+        <span class="status-badge status-{{ member.status.lower().replace(' ', '-') }}">{{ member.status }}</span>
+      </div>
+      <div class="id-qr">
+        <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Code" width="120">
+        <small>Scan for member info</small>
+      </div>
+    </div>
+
+    <!-- Countdown Card -->
+    <div class="countdown-card countdown-{{ 'green' if member.days_remaining > 20 else 'orange' if member.days_remaining > 0 else 'red' }}">
+      <div class="countdown-icon">
+        {% if member.days_remaining > 20 %}<i class="bi bi-shield-check-fill"></i>
+        {% elif member.days_remaining > 0 %}<i class="bi bi-clock-history"></i>
+        {% else %}<i class="bi bi-x-circle-fill"></i>{% endif %}
+      </div>
+      {% if member.days_remaining > 0 %}
+        <div class="countdown-number">{{ member.days_remaining }}</div>
+        <div class="countdown-label">Days Remaining</div>
+      {% else %}
+        <div class="countdown-number">{{ member.days_remaining | abs }}</div>
+        <div class="countdown-label">Days Ago Expired</div>
+      {% endif %}
+      <div class="countdown-date">Expires: {{ member.expiry_date.strftime('%d %b %Y') }}</div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div class="profile-right">
+
+    <!-- Personal Details -->
+    <div class="info-card">
+      <div class="card-header"><h3><i class="bi bi-person-fill"></i> Personal Details</h3></div>
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">Age</span><span class="info-val">{{ member.age or '–' }}</span></div>
+        <div class="info-item"><span class="info-label">Gender</span><span class="info-val">{{ member.gender or '–' }}</span></div>
+        <div class="info-item"><span class="info-label">DOB</span><span class="info-val">{{ member.date_of_birth.strftime('%d %b %Y') if member.date_of_birth else '–' }}</span></div>
+        <div class="info-item"><span class="info-label">Emergency</span><span class="info-val">{{ member.emergency_contact or '–' }}</span></div>
+        <div class="info-item col-2"><span class="info-label">Address</span><span class="info-val">{{ member.address or '–' }}</span></div>
+      </div>
+    </div>
+
+    <!-- Membership Details -->
+    <div class="info-card">
+      <div class="card-header"><h3><i class="bi bi-card-checklist"></i> Membership</h3></div>
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">Plan</span><span class="info-val">{{ member.plan.name if member.plan else '–' }}</span></div>
+        <div class="info-item"><span class="info-label">Type</span>
+          <span class="info-val">
+            {% if member.plan %}
+              {{ '🏃 With Cardio' if member.plan.category == 'with_cardio' else '🏋️ Without Cardio' }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="info-item"><span class="info-label">Joining</span><span class="info-val">{{ member.joining_date.strftime('%d %b %Y') }}</span></div>
+        <div class="info-item"><span class="info-label">Expiry</span><span class="info-val">{{ member.expiry_date.strftime('%d %b %Y') }}</span></div>
+      </div>
+    </div>
+
+    <!-- Payment Details -->
+    <div class="info-card">
+      <div class="card-header">
+        <h3><i class="bi bi-cash-coin"></i> Payment</h3>
+        <button class="btn-sm" onclick="document.getElementById('pay-modal').classList.add('show')">
+          <i class="bi bi-plus"></i> Add Payment
+        </button>
+      </div>
+      <div class="payment-summary">
+        <div class="pay-item">
+          <span>Total Fee</span>
+          <strong>{{ settings.currency }}{{ "%.0f"|format(member.total_fee) }}</strong>
+        </div>
+        <div class="pay-item paid">
+          <span>Amount Paid</span>
+          <strong>{{ settings.currency }}{{ "%.0f"|format(member.amount_paid) }}</strong>
+        </div>
+        <div class="pay-item due">
+          <span>Due Amount</span>
+          <strong>{{ settings.currency }}{{ "%.0f"|format(member.due_amount) }}</strong>
+        </div>
+        <div class="pay-item status">
+          <span>Status</span>
+          <span class="status-badge status-{{ 'paid' if member.payment_status == 'Fully Paid' else 'partial' if member.payment_status == 'Partially Paid' else 'unpaid' }}">
+            {{ member.payment_status }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Payment History -->
+      {% if payments %}
+      <div class="payment-history">
+        <h4>Payment History</h4>
+        {% for p in payments %}
+        <div class="pay-hist-item">
+          <span>{{ p.payment_date.strftime('%d %b %Y') }}</span>
+          <span class="pay-hist-note">{{ p.note or 'Payment' }}</span>
+          <span class="pay-hist-amount">+{{ settings.currency }}{{ "%.0f"|format(p.amount) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Attendance -->
+    <div class="info-card">
+      <div class="card-header"><h3><i class="bi bi-calendar-check-fill"></i> Recent Attendance</h3></div>
+      {% if attendance %}
+      <div class="attendance-list">
+        {% for a in attendance %}
+        <div class="att-item">
+          <i class="bi bi-clock-fill"></i>
+          <span>{{ a.check_in.strftime('%d %b %Y %H:%M') }}</span>
+          {% if a.check_out %}<span class="att-out">→ {{ a.check_out.strftime('%H:%M') }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state small"><i class="bi bi-calendar-x"></i><p>No attendance recorded</p></div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay" id="pay-modal">
+  <div class="modal-box">
+    <h3><i class="bi bi-cash-coin"></i> Add Payment</h3>
+    <form method="POST" action="{{ url_for('members.add_payment', member_id=member.id) }}">
+      <div class="field-group" style="margin-top:16px">
+        <label>Amount ({{ settings.currency }})</label>
+        <input type="number" name="amount" step="0.01" min="1" max="{{ member.due_amount }}" class="form-field" required>
+      </div>
+      <div class="field-group" style="margin-top:12px">
+        <label>Note (optional)</label>
+        <input type="text" name="note" class="form-field" placeholder="e.g. Cash payment">
+      </div>
+      <div class="modal-actions" style="margin-top:20px">
+        <button type="button" onclick="document.getElementById('pay-modal').classList.remove('show')" class="btn-ghost">Cancel</button>
+        <button type="submit" class="btn-primary-main">Record Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('pay-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('show');
+});
+</script>
+{% endblock %}

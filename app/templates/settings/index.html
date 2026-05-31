@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block title %}Settings — {{ settings.gym_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-sub">Configure your gym management system</p>
+  </div>
+</div>
+
+<div class="settings-grid">
+
+  <!-- Gym Info -->
+  <div class="settings-card">
+    <div class="settings-card-header"><i class="bi bi-building"></i><h3>Gym Information</h3></div>
+    <form method="POST" action="{{ url_for('settings.update_gym') }}" enctype="multipart/form-data">
+      <div class="field-group">
+        <label>Gym Name</label>
+        <input type="text" name="gym_name" class="form-field" value="{{ settings.gym_name }}" required>
+      </div>
+      <div class="field-group" style="margin-top:12px">
+        <label>Gym Logo</label>
+        <input type="file" name="gym_logo" class="form-field" accept="image/*">
+        {% if settings.gym_logo %}
+          <img src="{{ url_for('static', filename='uploads/' + settings.gym_logo) }}" class="logo-preview" alt="Logo">
+        {% endif %}
+      </div>
+      <button type="submit" class="btn-primary-main" style="margin-top:16px">
+        <i class="bi bi-check-lg"></i> Save Changes
+      </button>
+    </form>
+  </div>
+
+  <!-- Change PIN -->
+  <div class="settings-card">
+    <div class="settings-card-header"><i class="bi bi-shield-lock-fill"></i><h3>Change PIN</h3></div>
+    <form method="POST" action="{{ url_for('settings.change_pin') }}">
+      <div class="field-group">
+        <label>New PIN</label>
+        <input type="password" name="new_pin" class="form-field" placeholder="Min 4 digits" minlength="4" required>
+      </div>
+      <div class="field-group" style="margin-top:12px">
+        <label>Confirm PIN</label>
+        <input type="password" name="confirm_pin" class="form-field" placeholder="Confirm new PIN" required>
+      </div>
+      <button type="submit" class="btn-primary-main" style="margin-top:16px">
+        <i class="bi bi-lock-fill"></i> Update PIN
+      </button>
+    </form>
+  </div>
+
+  <!-- Membership Prices -->
+  <div class="settings-card price-card">
+    <div class="settings-card-header"><i class="bi bi-tag-fill"></i><h3>Membership Prices</h3></div>
+    <form method="POST" action="{{ url_for('settings.update_prices') }}">
+      <div class="price-sections">
+        <div class="price-section">
+          <h4>🏃 With Cardio</h4>
+          {% for plan in plans if plan.category == 'with_cardio' %}
+          <div class="price-row">
+            <span>{{ plan.name }}</span>
+            <div class="input-prefix small">
+              <span>₹</span>
+              <input type="number" name="plan_{{ plan.id }}" value="{{ plan.price }}" min="0" step="1" class="form-field">
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="price-section">
+          <h4>🏋️ Without Cardio</h4>
+          {% for plan in plans if plan.category == 'without_cardio' %}
+          <div class="price-row">
+            <span>{{ plan.name }}</span>
+            <div class="input-prefix small">
+              <span>₹</span>
+              <input type="number" name="plan_{{ plan.id }}" value="{{ plan.price }}" min="0" step="1" class="form-field">
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn-primary-main" style="margin-top:16px">
+        <i class="bi bi-check-lg"></i> Update Prices
+      </button>
+    </form>
+  </div>
+
+  <!-- Backup & Restore -->
+  <div class="settings-card">
+    <div class="settings-card-header"><i class="bi bi-database-fill"></i><h3>Database</h3></div>
+    <div class="db-actions">
+      <a href="{{ url_for('settings.backup') }}" class="btn-success-main">
+        <i class="bi bi-cloud-arrow-down-fill"></i> Download Backup
+      </a>
+    </div>
+    <form method="POST" action="{{ url_for('settings.restore') }}" enctype="multipart/form-data" style="margin-top:16px">
+      <div class="field-group">
+        <label>Restore from Backup (.db file)</label>
+        <input type="file" name="backup_file" class="form-field" accept=".db" required>
+      </div>
+      <button type="submit" class="btn-ghost-main" style="margin-top:12px" onclick="return confirm('This will overwrite your current database!')">
+        <i class="bi bi-cloud-arrow-up-fill"></i> Restore Database
+      </button>
+    </form>
+  </div>
+
+  <!-- Export -->
+  <div class="settings-card">
+    <div class="settings-card-header"><i class="bi bi-download"></i><h3>Export Data</h3></div>
+    <div class="export-actions">
+      <a href="{{ url_for('reports.export_excel') }}" class="export-btn excel">
+        <i class="bi bi-file-earmark-excel-fill"></i>
+        <div>Export Excel<small>All members as .xlsx</small></div>
+      </a>
+      <a href="{{ url_for('reports.export_pdf') }}" class="export-btn pdf">
+        <i class="bi bi-file-earmark-pdf-fill"></i>
+        <div>Export PDF<small>All members as .pdf</small></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Dark Mode -->
+  <div class="settings-card">
+    <div class="settings-card-header"><i class="bi bi-moon-stars-fill"></i><h3>Appearance</h3></div>
+    <div class="theme-toggle-row">
+      <span>Dark Mode</span>
+      <form method="POST" action="{{ url_for('settings.toggle_dark') }}">
+        <button type="submit" class="toggle-switch {{ 'on' if settings.dark_mode else '' }}">
+          <span></span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

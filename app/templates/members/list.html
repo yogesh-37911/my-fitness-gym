@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Members — {{ settings.gym_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Members</h1>
+    <p class="page-sub">{{ members|length }} member(s) found</p>
+  </div>
+  <a href="{{ url_for('members.add_member') }}" class="btn-primary-main">
+    <i class="bi bi-plus-lg"></i> Add Member
+  </a>
+</div>
+
+<!-- Search & Filters -->
+<div class="filter-bar">
+  <form method="GET" action="{{ url_for('members.list_members') }}" class="search-form">
+    <div class="search-input-wrap">
+      <i class="bi bi-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Search by name, mobile, ID…" class="search-field">
+      {% if q %}<button type="button" onclick="window.location='{{ url_for('members.list_members') }}'" class="clear-btn"><i class="bi bi-x"></i></button>{% endif %}
+    </div>
+    <input type="hidden" name="filter" value="{{ filter }}">
+  </form>
+
+  <div class="filter-chips">
+    {% for label, val in [('All', 'all'), ('Active', 'active'), ('Expired', 'expired'), ('Expiring Soon', 'expiring'), ('Fully Paid', 'fully_paid'), ('Partial', 'partial'), ('With Cardio', 'with_cardio'), ('Without Cardio', 'without_cardio')] %}
+    <a href="{{ url_for('members.list_members', filter=val, q=q) }}"
+       class="chip {% if filter == val %}chip-active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Table -->
+<div class="table-card">
+  {% if members %}
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Mobile</th>
+          <th>Plan</th>
+          <th>Joining</th>
+          <th>Expiry</th>
+          <th>Paid</th>
+          <th>Due</th>
+          <th>Days Left</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td><span class="member-id-tag">{{ m.member_id }}</span></td>
+          <td>
+            <div class="member-name-cell">
+              <div class="member-avatar-sm">{{ m.full_name[0].upper() }}</div>
+              <span>{{ m.full_name }}</span>
+            </div>
+          </td>
+          <td>{{ m.mobile }}</td>
+          <td>
+            <span class="plan-tag plan-{{ 'cardio' if 'with_cardio' == m.plan.category else 'nocardio' }}">
+              {{ m.plan.name if m.plan else '–' }}
+              {% if m.plan %}<small>{{ '🏃' if m.plan.category == 'with_cardio' else '🏋️' }}</small>{% endif %}
+            </span>
+          </td>
+          <td>{{ m.joining_date.strftime('%d %b %Y') }}</td>
+          <td>{{ m.expiry_date.strftime('%d %b %Y') }}</td>
+          <td>{{ settings.currency }}{{ "%.0f"|format(m.amount_paid) }}</td>
+          <td>
+            {% if m.due_amount > 0 %}
+              <span class="due-amount">{{ settings.currency }}{{ "%.0f"|format(m.due_amount) }}</span>
+            {% else %}
+              <span class="paid-chip">Cleared</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="days-badge days-{{ 'green' if m.days_remaining > 20 else 'orange' if m.days_remaining > 0 else 'red' }}">
+              {{ m.days_remaining }}d
+            </span>
+          </td>
+          <td><span class="status-badge status-{{ m.status.lower().replace(' ', '-') }}">{{ m.status }}</span></td>
+          <td>
+            <div class="action-btns">
+              <a href="{{ url_for('members.profile', member_id=m.id) }}" class="action-btn view" title="View"><i class="bi bi-eye-fill"></i></a>
+              <a href="{{ url_for('members.edit_member', member_id=m.id) }}" class="action-btn edit" title="Edit"><i class="bi bi-pencil-fill"></i></a>
+              <button onclick="confirmDelete({{ m.id }}, '{{ m.full_name }}')" class="action-btn del" title="Delete"><i class="bi bi-trash-fill"></i></button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state large">
+    <i class="bi bi-people"></i>
+    <h3>No Members Found</h3>
+    <p>{% if q %}No results for "{{ q }}"{% else %}Start by adding your first member{% endif %}</p>
+    <a href="{{ url_for('members.add_member') }}" class="btn-primary-main">Add Member</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal-box">
+    <div class="modal-icon danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <h3>Delete Member?</h3>
+    <p id="delete-msg">This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button onclick="closeModal()" class="btn-ghost">Cancel</button>
+      <form id="delete-form" method="POST">
+        <button type="submit" class="btn-danger">Yes, Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(id, name) {
+  document.getElementById('delete-msg').textContent = `Delete member "${name}"? This cannot be undone.`;
+  document.getElementById('delete-form').action = `/members/${id}/delete`;
+  document.getElementById('delete-modal').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('delete-modal').classList.remove('show');
+}
+document.getElementById('delete-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}

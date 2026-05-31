@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Reports — {{ settings.gym_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Reports</h1>
+    <p class="page-sub">Revenue & membership analytics</p>
+  </div>
+  <div style="display:flex;gap:10px">
+    <a href="{{ url_for('reports.export_excel') }}" class="btn-ghost-main">
+      <i class="bi bi-file-earmark-excel-fill"></i> Excel
+    </a>
+    <a href="{{ url_for('reports.export_pdf') }}" class="btn-primary-main">
+      <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+    </a>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:30px">
+  <div class="stat-card stat-green">
+    <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+    <div class="stat-body">
+      <div class="stat-value">{{ settings.currency }}{{ "%.0f"|format(total_revenue) }}</div>
+      <div class="stat-label">Total Revenue</div>
+    </div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
+    <div class="stat-body">
+      <div class="stat-value">{{ settings.currency }}{{ "%.0f"|format(total_due) }}</div>
+      <div class="stat-label">Total Outstanding</div>
+    </div>
+  </div>
+</div>
+
+<!-- Revenue Chart -->
+<div class="dash-card chart-card" style="margin-bottom:24px">
+  <div class="card-header">
+    <h3>Monthly Revenue (Last 12 Months)</h3>
+  </div>
+  <canvas id="monthlyChart" height="100"></canvas>
+</div>
+
+<!-- Monthly Table -->
+<div class="table-card">
+  <div class="card-header" style="padding:20px 24px">
+    <h3>Monthly Breakdown</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>Revenue Collected</th>
+          <th>Bar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set max_rev = monthly | map(attribute='revenue') | max %}
+        {% for row in monthly %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td><strong>{{ settings.currency }}{{ "%.0f"|format(row.revenue) }}</strong></td>
+          <td>
+            <div class="revenue-bar-wrap">
+              <div class="revenue-bar" style="width:{{ ((row.revenue / max_rev * 100) if max_rev > 0 else 0) | int }}%"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const labels = {{ monthly | map(attribute='label') | list | tojson }};
+const data = {{ monthly | map(attribute='revenue') | list | tojson }};
+new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Revenue',
+      data,
+      borderColor: '#22d38a',
+      backgroundColor: 'rgba(34, 211, 138, 0.1)',
+      borderWidth: 2.5,
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: '#22d38a',
+      pointRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: 'rgba(148,163,184,0.1)' }, ticks: { color: '#94a3b8', callback: v => '₹' + v.toLocaleString() } },
+      x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — {{ settings.gym_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-sub">Welcome back! Here's your gym overview.</p>
+  </div>
+  <a href="{{ url_for('members.add_member') }}" class="btn-primary-main">
+    <i class="bi bi-plus-lg"></i> Add Member
+  </a>
+</div>
+
+<!-- Birthday Banner -->
+{% if birthdays %}
+<div class="birthday-banner">
+  <i class="bi bi-balloon-fill"></i>
+  <span>🎂 Today's Birthdays: 
+    {% for b in birthdays %}<strong>{{ b.full_name }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}
+  </span>
+</div>
+{% endif %}
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+  <div class="stat-card stat-blue">
+    <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+    <div class="stat-body">
+      <div class="stat-value" data-count="{{ total }}">0</div>
+      <div class="stat-label">Total Members</div>
+    </div>
+    <div class="stat-trend up"><i class="bi bi-arrow-up-right"></i></div>
+  </div>
+  <div class="stat-card stat-green">
+    <div class="stat-icon"><i class="bi bi-person-check-fill"></i></div>
+    <div class="stat-body">
+      <div class="stat-value" data-count="{{ active }}">0</div>
+      <div class="stat-label">Active Members</div>
+    </div>
+    <div class="stat-trend up"><i class="bi bi-arrow-up-right"></i></div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon"><i class="bi bi-person-x-fill"></i></div>
+    <div class="stat-body">
+      <div class="stat-value" data-count="{{ expired }}">0</div>
+      <div class="stat-label">Expired Members</div>
+    </div>
+    <div class="stat-trend down"><i class="bi bi-arrow-down-right"></i></div>
+  </div>
+  <div class="stat-card stat-orange">
+    <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+    <div class="stat-body">
+      <div class="stat-value" data-count="{{ expiring_soon }}">0</div>
+      <div class="stat-label">Expiring Soon</div>
+    </div>
+    <div class="stat-trend warn"><i class="bi bi-exclamation-triangle-fill"></i></div>
+  </div>
+  <div class="stat-card stat-purple">
+    <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+    <div class="stat-body">
+      <div class="stat-value">{{ settings.currency }}{{ "%.0f"|format(monthly_revenue) }}</div>
+      <div class="stat-label">Monthly Revenue</div>
+    </div>
+    <div class="stat-trend up"><i class="bi bi-arrow-up-right"></i></div>
+  </div>
+  <div class="stat-card stat-yellow">
+    <div class="stat-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
+    <div class="stat-body">
+      <div class="stat-value">{{ settings.currency }}{{ "%.0f"|format(pending_fees) }}</div>
+      <div class="stat-label">Pending Fees</div>
+    </div>
+    <div class="stat-trend warn"><i class="bi bi-dash"></i></div>
+  </div>
+</div>
+
+<!-- Charts + Recent -->
+<div class="dash-grid">
+  <!-- Revenue Chart -->
+  <div class="dash-card chart-card">
+    <div class="card-header">
+      <h3>Revenue Overview</h3>
+      <span class="card-badge">Last 6 Months</span>
+    </div>
+    <canvas id="revenueChart" height="200"></canvas>
+  </div>
+
+  <!-- Recent Registrations -->
+  <div class="dash-card">
+    <div class="card-header">
+      <h3>Recent Registrations</h3>
+      <a href="{{ url_for('members.list_members') }}" class="card-link">View All</a>
+    </div>
+    <div class="recent-list">
+      {% for m in recent %}
+      <a href="{{ url_for('members.profile', member_id=m.id) }}" class="recent-item">
+        <div class="recent-avatar">{{ m.full_name[0].upper() }}</div>
+        <div class="recent-info">
+          <span class="recent-name">{{ m.full_name }}</span>
+          <span class="recent-meta">{{ m.member_id }} · {{ m.plan.name if m.plan else '' }}</span>
+        </div>
+        <span class="status-badge status-{{ m.status.lower().replace(' ', '-') }}">{{ m.status }}</span>
+      </a>
+      {% else %}
+      <div class="empty-state"><i class="bi bi-inbox"></i><p>No members yet</p></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Quick Filters -->
+  <div class="dash-card">
+    <div class="card-header"><h3>Quick Access</h3></div>
+    <div class="quick-links">
+      <a href="{{ url_for('members.list_members', filter='expiring') }}" class="quick-link ql-orange">
+        <i class="bi bi-clock-history"></i>
+        <span>Expiring Soon</span>
+        <b>{{ expiring_soon }}</b>
+      </a>
+      <a href="{{ url_for('members.list_members', filter='expired') }}" class="quick-link ql-red">
+        <i class="bi bi-x-circle-fill"></i>
+        <span>Expired</span>
+        <b>{{ expired }}</b>
+      </a>
+      <a href="{{ url_for('members.list_members', filter='partial') }}" class="quick-link ql-yellow">
+        <i class="bi bi-cash-coin"></i>
+        <span>Partial Payment</span>
+      </a>
+      <a href="{{ url_for('reports.export_excel') }}" class="quick-link ql-green">
+        <i class="bi bi-file-earmark-excel-fill"></i>
+        <span>Export Excel</span>
+      </a>
+      <a href="{{ url_for('reports.export_pdf') }}" class="quick-link ql-blue">
+        <i class="bi bi-file-earmark-pdf-fill"></i>
+        <span>Export PDF</span>
+      </a>
+      <a href="{{ url_for('settings.backup') }}" class="quick-link ql-purple">
+        <i class="bi bi-cloud-arrow-down-fill"></i>
+        <span>Backup DB</span>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const labels = {{ chart_labels | tojson }};
+const data = {{ chart_data | tojson }};
+const ctx = document.getElementById('revenueChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Revenue (₹)',
+      data,
+      backgroundColor: 'rgba(34, 211, 138, 0.25)',
+      borderColor: '#22d38a',
+      borderWidth: 2,
+      borderRadius: 8,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: '#94a3b8', callback: v => '₹' + v.toLocaleString() }
+      },
+      x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+    }
+  }
+});
+
+// Count-up animation
+document.querySelectorAll('[data-count]').forEach(el => {
+  const target = +el.dataset.count;
+  let current = 0;
+  const step = Math.max(1, Math.floor(target / 40));
+  const timer = setInterval(() => {
+    current = Math.min(current + step, target);
+    el.textContent = current;
+    if (current >= target) clearInterval(timer);
+  }, 30);
+});
+</script>
+{% endblock %}

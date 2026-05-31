@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}Renew — {{ member.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Renew Membership</h1>
+    <p class="page-sub">{{ member.member_id }} — {{ member.full_name }}</p>
+  </div>
+  <a href="{{ url_for('members.profile', member_id=member.id) }}" class="btn-ghost-main">
+    <i class="bi bi-arrow-left"></i> Back
+  </a>
+</div>
+
+<form method="POST" action="{{ url_for('members.renew', member_id=member.id) }}" class="member-form" id="renew-form">
+  <div class="form-grid">
+    <div class="form-section">
+      <div class="section-header"><i class="bi bi-arrow-clockwise"></i><h3>Renewal Details</h3></div>
+      <div class="field-grid">
+        <div class="field-group">
+          <label>New Start Date</label>
+          <input type="date" name="joining_date" id="joining_date" required class="form-field" value="{{ today }}">
+        </div>
+
+        <div class="field-group">
+          <label>Membership Type</label>
+          <div class="toggle-group">
+            <button type="button" class="toggle-btn {% if member.plan.category == 'with_cardio' %}active{% endif %}" id="btn-cardio" onclick="setCategory('with_cardio')">🏃 With Cardio</button>
+            <button type="button" class="toggle-btn {% if member.plan.category == 'without_cardio' %}active{% endif %}" id="btn-nocardio" onclick="setCategory('without_cardio')">🏋️ Without Cardio</button>
+          </div>
+          <input type="hidden" name="category" id="category-input" value="{{ member.plan.category }}">
+        </div>
+
+        <div class="field-group col-2">
+          <label>Select Plan</label>
+          <div class="plan-cards" id="plan-cards"></div>
+          <input type="hidden" name="plan_id" id="plan-id-input" required>
+        </div>
+
+        <div class="field-group">
+          <label>New Expiry Date</label>
+          <input type="text" id="expiry-preview" class="form-field" readonly placeholder="Select a plan">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-header"><i class="bi bi-cash-coin"></i><h3>Payment</h3></div>
+      <div class="field-grid">
+        <div class="field-group">
+          <label>Total Fee</label>
+          <div class="input-prefix"><span>₹</span>
+            <input type="number" name="total_fee" id="total-fee" step="0.01" class="form-field" placeholder="0">
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Amount Paid</label>
+          <div class="input-prefix"><span>₹</span>
+            <input type="number" name="amount_paid" id="amount-paid" step="0.01" class="form-field" placeholder="0" oninput="calcDue()">
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Due Amount</label>
+          <div class="input-prefix"><span>₹</span>
+            <input type="text" id="due-amount" class="form-field due-field" readonly>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <a href="{{ url_for('members.profile', member_id=member.id) }}" class="btn-ghost-main">Cancel</a>
+    <button type="submit" class="btn-primary-main"><i class="bi bi-arrow-clockwise"></i> Renew Membership</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allPlans = {}, selectedPlan = null;
+const defaultCategory = '{{ member.plan.category }}';
+const defaultPlanId = {{ member.plan_id }};
+
+async function loadPlans(category) {
+  if (!allPlans[category]) {
+    const res = await fetch(`/api/plans?category=${category}`);
+    allPlans[category] = await res.json();
+  }
+  renderPlanCards(category);
+}
+
+function renderPlanCards(category) {
+  const container = document.getElementById('plan-cards');
+  const plans = allPlans[category] || [];
+  container.innerHTML = plans.map(p => `
+    <div class="plan-card ${p.id === defaultPlanId ? 'selected' : ''}" onclick="selectPlan(${p.id}, ${p.price}, ${p.total_months}, this)">
+      <div class="plan-months">${p.duration_months}${p.bonus_months > 0 ? ' <span>+' + p.bonus_months + ' free</span>' : ''} Mo</div>
+      <div class="plan-name">${p.name}</div>
+      <div class="plan-price">₹${p.price.toLocaleString()}</div>
+    </div>
+  `).join('');
+  const defaultCard = container.querySelector('.selected');
+  if (defaultCard) {
+    const p = plans.find(x => x.id === defaultPlanId);
+    if (p) selectPlan(p.id, p.price, p.total_months, defaultCard);
+  }
+}
+
+function selectPlan(id, price, months, el) {
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPlan = { id, price, months };
+  document.getElementById('plan-id-input').value = id;
+  document.getElementById('total-fee').value = price;
+  calcDue();
+  const joining = document.getElementById('joining_date').value;
+  if (joining) {
+    const d = new Date(joining);
+    d.setMonth(d.getMonth() + months);
+    document.getElementById('expiry-preview').value = d.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+  }
+}
+
+function setCategory(cat) {
+  document.getElementById('category-input').value = cat;
+  document.getElementById('btn-cardio').classList.toggle('active', cat === 'with_cardio');
+  document.getElementById('btn-nocardio').classList.toggle('active', cat === 'without_cardio');
+  loadPlans(cat);
+}
+
+function calcDue() {
+  const total = parseFloat(document.getElementById('total-fee').value) || 0;
+  const paid = parseFloat(document.getElementById('amount-paid').value) || 0;
+  document.getElementById('due-amount').value = Math.max(0, total - paid).toFixed(2);
+}
+
+document.getElementById('joining_date').addEventListener('change', () => {
+  if (selectedPlan) {
+    const d = new Date(document.getElementById('joining_date').value);
+    d.setMonth(d.getMonth() + selectedPlan.months);
+    document.getElementById('expiry-preview').value = d.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+  }
+});
+
+loadPlans(defaultCategory);
+</script>
+{% endblock %}
