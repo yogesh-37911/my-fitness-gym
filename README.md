@@ -169,3 +169,4 @@ On first run, the system auto-creates:
 3. Under **Change PIN**, enter new PIN (min 4 digits)
 4. Click **Update PIN**
 # my-fitness-gym
+# my-fitness-gym
