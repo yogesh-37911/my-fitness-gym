@@ -49,11 +49,11 @@ def manifest():
     gym_name = settings.gym_name if settings else 'Gym Manager'
     logo_filename = settings.gym_logo if (settings and settings.gym_logo) else 'My_Fitness_Logo.png'
     
-    # Render static upload path or fallback default
+    # Generate full absolute URLs (required by some mobile platforms)
     if settings and settings.gym_logo:
-        logo_url = url_for('static', filename=f'uploads/{logo_filename}')
+        logo_url = url_for('static', filename=f'uploads/{logo_filename}', _external=True)
     else:
-        logo_url = url_for('static', filename=f'uploads/My_Fitness_Logo.png')
+        logo_url = url_for('static', filename=f'uploads/My_Fitness_Logo.png', _external=True)
         
     m = {
         "short_name": gym_name,
@@ -61,12 +61,24 @@ def manifest():
         "icons": [
             {
                 "src": logo_url,
-                "sizes": "192x192 512x512",
+                "sizes": "192x192",
                 "type": "image/png",
-                "purpose": "any maskable"
+                "purpose": "any"
+            },
+            {
+                "src": logo_url,
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any"
+            },
+            {
+                "src": logo_url,
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "maskable"
             }
         ],
-        "start_url": url_for('auth.login'),
+        "start_url": url_for('auth.login', _external=True),
         "background_color": "#0A1628",
         "theme_color": "#0A1628",
         "display": "standalone",
