@@ -45,8 +45,10 @@ def index():
     ).count()
 
     # Revenue
+    from sqlalchemy import extract
     monthly_revenue = db.session.query(func.sum(Member.amount_paid)).filter(
-        func.strftime('%Y-%m', Member.joining_date) == today.strftime('%Y-%m')
+        extract('year', Member.joining_date) == today.year,
+        extract('month', Member.joining_date) == today.month
     ).scalar() or 0
 
     pending_fees = db.session.query(
@@ -59,7 +61,8 @@ def index():
 
     # Today's birthdays
     birthdays = Member.query.filter(
-        func.strftime('%m-%d', Member.date_of_birth) == today.strftime('%m-%d')
+        extract('month', Member.date_of_birth) == today.month,
+        extract('day', Member.date_of_birth) == today.day
     ).all() if today else []
 
     # Revenue chart data (last 6 months)
@@ -69,7 +72,8 @@ def index():
         d = today.replace(day=1) - timedelta(days=i*30)
         label = d.strftime('%b %Y')
         rev = db.session.query(func.sum(Member.amount_paid)).filter(
-            func.strftime('%Y-%m', Member.joining_date) == d.strftime('%Y-%m')
+            extract('year', Member.joining_date) == d.year,
+            extract('month', Member.joining_date) == d.month
         ).scalar() or 0
         chart_labels.append(label)
         chart_data.append(float(rev))

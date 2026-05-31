@@ -16,12 +16,14 @@ def index():
     today = date.today()
 
     # Revenue per month (last 12)
+    from sqlalchemy import extract
     monthly = []
     for i in range(11, -1, -1):
         d = (today.replace(day=1) - timedelta(days=i*30))
         label = d.strftime('%b %Y')
         rev = db.session.query(db.func.sum(Member.amount_paid)).filter(
-            db.func.strftime('%Y-%m', Member.joining_date) == d.strftime('%Y-%m')
+            extract('year', Member.joining_date) == d.year,
+            extract('month', Member.joining_date) == d.month
         ).scalar() or 0
         monthly.append({'label': label, 'revenue': float(rev)})
 
