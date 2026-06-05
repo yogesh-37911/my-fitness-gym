@@ -11,11 +11,13 @@ members_bp = Blueprint('members', __name__, url_prefix='/members')
 
 
 def _next_member_id():
-    last = Member.query.order_by(Member.id.desc()).first()
-    if last and last.member_id:
-        # Extract numeric part from e.g. 'GYM0005' -> 5, then increment
+    """Generate next member ID like GYM0019 by finding the actual max number."""
+    from sqlalchemy import func
+    # Get the highest member_id string directly (e.g. 'GYM0018')
+    result = db.session.query(func.max(Member.member_id)).scalar()
+    if result:
         import re
-        match = re.search(r'\d+', last.member_id)
+        match = re.search(r'\d+', result)
         num = int(match.group()) + 1 if match else 1
     else:
         num = 1
