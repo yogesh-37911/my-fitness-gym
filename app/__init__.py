@@ -22,9 +22,13 @@ def create_app():
     
     db_url = os.environ.get('DATABASE_URL')
     if db_url:
-        # Render PostgreSQL URLs start with postgres://, which SQLAlchemy no longer supports
+        # Render/Supabase PostgreSQL URLs start with postgres://, which SQLAlchemy no longer supports
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
+        # Supabase requires SSL — append sslmode=require if not already present
+        if 'postgresql' in db_url and 'sslmode' not in db_url:
+            separator = '&' if '?' in db_url else '?'
+            db_url += f'{separator}sslmode=require'
         app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(

@@ -97,7 +97,15 @@ def service_worker():
         event.waitUntil(self.clients.claim());
     });
     self.addEventListener('fetch', function(event) {
-        event.respondWith(fetch(event.request));
+        // Only handle GET requests — let POST/PUT/DELETE go through natively
+        if (event.request.method !== 'GET') {
+            return;
+        }
+        event.respondWith(
+            fetch(event.request).catch(function() {
+                return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+            })
+        );
     });
     """
     return Response(sw_code, mimetype='application/javascript')

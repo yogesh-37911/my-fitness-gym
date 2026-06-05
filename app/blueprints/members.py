@@ -12,7 +12,13 @@ members_bp = Blueprint('members', __name__, url_prefix='/members')
 
 def _next_member_id():
     last = Member.query.order_by(Member.id.desc()).first()
-    num = (last.id + 1) if last else 1
+    if last and last.member_id:
+        # Extract numeric part from e.g. 'GYM0005' -> 5, then increment
+        import re
+        match = re.search(r'\d+', last.member_id)
+        num = int(match.group()) + 1 if match else 1
+    else:
+        num = 1
     return f'GYM{num:04d}'
 
 
@@ -65,46 +71,50 @@ def add_member():
     settings = Settings.query.first()
 
     if request.method == 'POST':
-        f = request.form
-        plan = MembershipPlan.query.get_or_404(int(f['plan_id']))
-        joining = date.fromisoformat(f['joining_date'])
-        expiry = _calc_expiry(joining, plan)
+        try:
+            f = request.form
+            plan = MembershipPlan.query.get_or_404(int(f['plan_id']))
+            joining = date.fromisoformat(f['joining_date'])
+            expiry = _calc_expiry(joining, plan)
 
-        total_fee = float(f.get('total_fee', plan.price))
-        amount_paid = float(f.get('amount_paid', 0))
+            total_fee = float(f.get('total_fee', plan.price))
+            amount_paid = float(f.get('amount_paid', 0))
 
-        dob = None
-        if f.get('date_of_birth'):
-            try:
-                dob = date.fromisoformat(f['date_of_birth'])
-            except Exception:
-                pass
+            dob = None
+            if f.get('date_of_birth'):
+                try:
+                    dob = date.fromisoformat(f['date_of_birth'])
+                except Exception:
+                    pass
 
-        member = Member(
-            member_id=_next_member_id(),
-            full_name=f['full_name'].strip(),
-            mobile=f['mobile'].strip(),
-            emergency_contact=f.get('emergency_contact', '').strip(),
-            address=f.get('address', '').strip(),
-            age=int(f['age']) if f.get('age') else None,
-            gender=f.get('gender', ''),
-            date_of_birth=dob,
-            plan_id=plan.id,
-            joining_date=joining,
-            expiry_date=expiry,
-            total_fee=total_fee,
-            amount_paid=amount_paid,
-        )
-        db.session.add(member)
-        db.session.flush()
+            member = Member(
+                member_id=_next_member_id(),
+                full_name=f['full_name'].strip(),
+                mobile=f['mobile'].strip(),
+                emergency_contact=f.get('emergency_contact', '').strip(),
+                address=f.get('address', '').strip(),
+                age=int(f['age']) if f.get('age') else None,
+                gender=f.get('gender', ''),
+                date_of_birth=dob,
+                plan_id=plan.id,
+                joining_date=joining,
+                expiry_date=expiry,
+                total_fee=total_fee,
+                amount_paid=amount_paid,
+            )
+            db.session.add(member)
+            db.session.flush()
 
-        if amount_paid > 0:
-            payment = Payment(member_id=member.id, amount=amount_paid, note='Initial payment')
-            db.session.add(payment)
+            if amount_paid > 0:
+                payment = Payment(member_id=member.id, amount=amount_paid, note='Initial payment')
+                db.session.add(payment)
 
-        db.session.commit()
-        flash(f'Member {member.member_id} added successfully!', 'success')
-        return redirect(url_for('members.profile', member_id=member.id))
+            db.session.commit()
+            flash(f'Member {member.member_id} added successfully!', 'success')
+            return redirect(url_for('members.profile', member_id=member.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding member: {str(e)}', 'danger')
 
     return render_template('members/add.html', plans=plans, settings=settings, today=date.today().isoformat())
 
