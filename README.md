@@ -170,3 +170,4 @@ On first run, the system auto-creates:
 4. Click **Update PIN**
 # my-fitness-gym
 # my-fitness-gym
+# salon-management-system
