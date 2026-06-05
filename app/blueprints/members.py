@@ -73,12 +73,19 @@ def add_member():
     if request.method == 'POST':
         try:
             f = request.form
-            plan = MembershipPlan.query.get_or_404(int(f['plan_id']))
+
+            # Validate plan_id — hidden input so HTML 'required' doesn't enforce it
+            plan_id_raw = f.get('plan_id', '').strip()
+            if not plan_id_raw:
+                flash('Please select a membership plan.', 'danger')
+                return render_template('members/add.html', plans=plans, settings=settings, today=date.today().isoformat())
+
+            plan = MembershipPlan.query.get_or_404(int(plan_id_raw))
             joining = date.fromisoformat(f['joining_date'])
             expiry = _calc_expiry(joining, plan)
 
-            total_fee = float(f.get('total_fee', plan.price))
-            amount_paid = float(f.get('amount_paid', 0))
+            total_fee = float(f.get('total_fee') or plan.price)
+            amount_paid = float(f.get('amount_paid') or 0)
 
             dob = None
             if f.get('date_of_birth'):
