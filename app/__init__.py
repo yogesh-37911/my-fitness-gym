@@ -56,8 +56,34 @@ def create_app():
     with app.app_context():
         db.create_all()
         _seed_defaults()
+        _fix_sequences()
 
     return app
+
+
+def _fix_sequences():
+    """Reset PostgreSQL auto-increment sequences to match actual max IDs.
+
+    After migrating data between PostgreSQL databases (e.g. Render → Supabase),
+    sequences can be out of sync, causing duplicate key violations on INSERT.
+    This is a no-op on SQLite.
+    """
+    from sqlalchemy import text
+    db_uri = db.engine.url.render_as_string(hide_password=False)
+    if 'postgresql' not in db_uri:
+        return
+
+    tables = ['members', 'payments', 'notifications', 'attendance',
+              'membership_plans', 'admin', 'settings']
+    for table in tables:
+        try:
+            db.session.execute(text(
+                f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
+                f"COALESCE(MAX(id), 1)) FROM {table}"
+            ))
+        except Exception:
+            pass  # Table might not exist yet or have no sequence
+    db.session.commit()
 
 
 def _seed_defaults():
